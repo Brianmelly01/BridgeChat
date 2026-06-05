@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { api } from '../store/adminStore';
 import toast from 'react-hot-toast';
 
@@ -12,7 +12,7 @@ export default function UsersPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['admin-users', search, page, filter],
     queryFn: () => api.get('/admin/users', { params: { q: search || undefined, page, isBanned: filter === 'banned' ? true : filter === 'active' ? false : undefined } }).then(r => r.data.data),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   const banMutation = useMutation({

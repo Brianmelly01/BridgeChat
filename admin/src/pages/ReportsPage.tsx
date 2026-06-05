@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { api } from '../store/adminStore';
 import toast from 'react-hot-toast';
 
@@ -13,7 +13,7 @@ export default function ReportsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['admin-reports', status, page],
     queryFn: () => api.get('/admin/reports', { params: { status, page } }).then(r => r.data.data),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   const updateMutation = useMutation({
