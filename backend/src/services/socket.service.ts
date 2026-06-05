@@ -1,7 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../config/database';
-import { setHashField, getHashField, deleteHashField } from '../config/redis';
+import { redis } from '../config/redis';
 import { logger } from '../config/logger';
 
 let ioInstance: Server;
@@ -26,7 +26,7 @@ export const setupSocket = (io: Server) => {
     logger.debug(`Socket connected: ${userId} (${socket.id})`);
 
     // Track online status
-    await setHashField('online:users', userId, socket.id);
+    await redis.hset('online:users', userId, socket.id).catch(() => {});
     await prisma.user.update({ where: { id: userId }, data: { isOnline: true, lastSeen: new Date() } }).catch(() => {});
 
     // Join personal room
@@ -87,12 +87,14 @@ export const setupSocket = (io: Server) => {
     // ── Disconnect ───────────────────────────────────────────────
     socket.on('disconnect', async () => {
       logger.debug(`Socket disconnected: ${userId}`);
-      await deleteHashField('online:users', userId);
+      await redis.hdel('online:users', userId).catch(() => {});
       await prisma.user.update({ where: { id: userId }, data: { isOnline: false, lastSeen: new Date() } }).catch(() => {});
       io.emit('user:offline', { userId, lastSeen: new Date() });
     });
   });
 };
+
+export const initSocketService = (io: Server) => setupSocket(io);
 
 export const emitToUser = (userId: string, event: string, data: any) => {
   ioInstance?.to(`user:${userId}`).emit(event, data);
@@ -103,7 +105,8 @@ export const emitToConversation = (conversationId: string, event: string, data: 
 };
 
 export const getSocketId = async (userId: string): Promise<string | undefined> => {
-  return getHashField('online:users', userId);
+  const val = await redis.hget('online:users', userId).catch(() => null);
+  return val ?? undefined;
 };
 
 export const isUserOnline = async (userId: string): Promise<boolean> => {
