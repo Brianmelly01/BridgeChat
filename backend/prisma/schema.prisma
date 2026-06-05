@@ -1,0 +1,319 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  MODERATOR
+  ADMIN
+}
+
+enum FollowStatus {
+  PENDING
+  ACCEPTED
+}
+
+enum ConversationType {
+  DIRECT
+  GROUP
+}
+
+enum ParticipantRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+  VOICE_NOTE
+  EMOJI
+}
+
+enum SocialPlatform {
+  INSTAGRAM
+  TIKTOK
+  FACEBOOK
+  TWITTER
+  SNAPCHAT
+  LINKEDIN
+  WEBSITE
+}
+
+enum GroupMemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum CallType {
+  AUDIO
+  VIDEO
+}
+
+enum CallStatus {
+  INITIATED
+  RINGING
+  ONGOING
+  ENDED
+  MISSED
+  REJECTED
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  RESOLVED
+  DISMISSED
+}
+
+model User {
+  id                 String    @id @default(cuid())
+  email              String?   @unique
+  phone              String?   @unique
+  username           String    @unique
+  displayName        String
+  bio                String?
+  avatarUrl          String?
+  coverUrl           String?
+  location           String?
+  latitude           Float?
+  longitude          Float?
+  isPrivate          Boolean   @default(false)
+  isVerified         Boolean   @default(false)
+  isOnline           Boolean   @default(false)
+  isBanned           Boolean   @default(false)
+  lastSeen           DateTime  @default(now())
+  passwordHash       String?
+  twoFactorSecret    String?
+  twoFactorEnabled   Boolean   @default(false)
+  emailVerified      Boolean   @default(false)
+  emailVerifyToken   String?
+  passwordResetToken String?
+  passwordResetExpiry DateTime?
+  role               UserRole  @default(USER)
+  fcmToken           String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  // Relations
+  socialLinks          SocialLink[]
+  followers            Follow[]              @relation("Following")
+  following            Follow[]              @relation("Follower")
+  conversationsCreated Conversation[]        @relation("ConversationCreator")
+  conversationParticipants ConversationParticipant[]
+  sentMessages         Message[]             @relation("MessageSender")
+  ownedGroups          Group[]               @relation("GroupOwner")
+  groupMemberships     GroupMember[]
+  initiatedCalls       Call[]                @relation("CallInitiator")
+  callParticipations   CallParticipant[]
+  notifications        Notification[]
+  reportsMade          Report[]              @relation("Reporter")
+  reportsReceived      Report[]              @relation("Reported")
+  blocksGiven          Block[]               @relation("Blocker")
+  blocksReceived       Block[]               @relation("Blocked")
+
+  @@index([username])
+  @@index([email])
+  @@index([isOnline])
+  @@index([isBanned])
+}
+
+model SocialLink {
+  id       String         @id @default(cuid())
+  userId   String
+  platform SocialPlatform
+  url      String
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, platform])
+}
+
+model Follow {
+  id          String       @id @default(cuid())
+  followerId  String
+  followingId String
+  status      FollowStatus @default(ACCEPTED)
+  createdAt   DateTime     @default(now())
+  follower    User         @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User         @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followingId])
+}
+
+model Conversation {
+  id            String              @id @default(cuid())
+  type          ConversationType    @default(DIRECT)
+  name          String?
+  description   String?
+  avatarUrl     String?
+  createdById   String
+  lastMessageAt DateTime            @default(now())
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  createdBy     User                @relation("ConversationCreator", fields: [createdById], references: [id])
+  participants  ConversationParticipant[]
+  messages      Message[]
+  calls         Call[]
+
+  @@index([createdById])
+  @@index([lastMessageAt])
+}
+
+model ConversationParticipant {
+  id             String       @id @default(cuid())
+  conversationId String
+  userId         String
+  role           ParticipantRole @default(MEMBER)
+  mutedUntil     DateTime?
+  lastReadAt     DateTime?
+  joinedAt       DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+}
+
+model Message {
+  id             String      @id @default(cuid())
+  conversationId String
+  senderId       String
+  type           MessageType @default(TEXT)
+  content        String?
+  mediaUrl       String?
+  mediaSize      Int?
+  mediaMime      String?
+  mediaName      String?
+  isEdited       Boolean     @default(false)
+  isDeleted      Boolean     @default(false)
+  replyToId      String?
+  forwardedFromId String?
+  reactions      Json        @default("{}")
+  readBy         Json        @default("[]")
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  replyTo        Message?     @relation("MessageReplies", fields: [replyToId], references: [id])
+  replies        Message[]    @relation("MessageReplies")
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+}
+
+model Group {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  avatarUrl   String?
+  isPublic    Boolean       @default(true)
+  ownerId     String
+  memberCount Int           @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  owner       User          @relation("GroupOwner", fields: [ownerId], references: [id])
+  members     GroupMember[]
+
+  @@index([isPublic])
+  @@index([memberCount])
+}
+
+model GroupMember {
+  id       String          @id @default(cuid())
+  groupId  String
+  userId   String
+  role     GroupMemberRole @default(MEMBER)
+  joinedAt DateTime        @default(now())
+  group    Group           @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+}
+
+model Call {
+  id             String          @id @default(cuid())
+  callerId       String
+  type           CallType
+  status         CallStatus      @default(INITIATED)
+  conversationId String?
+  startedAt      DateTime?
+  endedAt        DateTime?
+  duration       Int             @default(0)
+  createdAt      DateTime        @default(now())
+  caller         User            @relation("CallInitiator", fields: [callerId], references: [id])
+  conversation   Conversation?   @relation(fields: [conversationId], references: [id])
+  participants   CallParticipant[]
+
+  @@index([callerId])
+}
+
+model CallParticipant {
+  id       String   @id @default(cuid())
+  callId   String
+  userId   String
+  joinedAt DateTime @default(now())
+  leftAt   DateTime?
+  call     Call     @relation(fields: [callId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([callId, userId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  body      String
+  data      Json     @default("{}")
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+}
+
+model Report {
+  id          String       @id @default(cuid())
+  reporterId  String
+  targetId    String
+  targetType  String       @default("USER")
+  reason      String
+  description String?
+  adminNote   String?
+  status      ReportStatus @default(PENDING)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  reporter    User         @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  target      User         @relation("Reported", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([targetId])
+}
+
+model Block {
+  id        String   @id @default(cuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+  blocker   User     @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User     @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+}

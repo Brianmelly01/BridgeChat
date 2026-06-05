@@ -1,0 +1,68 @@
+# ─── Node ────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp
+.pnp.js
+
+# ─── Build outputs ───────────────────────
+dist/
+build/
+.next/
+out/
+
+# ─── Environment files ───────────────────
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# ─── Logs ────────────────────────────────
+logs/
+*.log
+
+# ─── Prisma ──────────────────────────────
+backend/src/generated/
+
+# ─── Expo / React Native ─────────────────
+mobile/.expo/
+mobile/dist/
+mobile/web-build/
+mobile/android/
+mobile/ios/
+mobile/*.jks
+mobile/*.p8
+mobile/*.p12
+mobile/*.key
+mobile/*.mobileprovision
+mobile/*.orig.*
+
+# ─── Admin ───────────────────────────────
+admin/dist/
+
+# ─── OS files ────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V7
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ─── IDE ─────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ─── Docker ──────────────────────────────
+nginx/ssl/
+nginx/logs/
+
+# ─── Misc ────────────────────────────────
+*.pem
+*.cert
+coverage/
+.nyc_output/

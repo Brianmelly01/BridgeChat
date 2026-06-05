@@ -1,0 +1,64 @@
+{
+  "expo": {
+    "name": "BridgeChat",
+    "slug": "bridgechat",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0A0A0F"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.bridgechat.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "BridgeChat needs camera access for video calls and profile photos",
+        "NSMicrophoneUsageDescription": "BridgeChat needs microphone access for voice and video calls",
+        "NSLocationWhenInUseUsageDescription": "BridgeChat uses your location to find nearby users",
+        "NSPhotoLibraryUsageDescription": "BridgeChat needs photo library access to share images"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0A0A0F"
+      },
+      "package": "com.bridgechat.app",
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "VIBRATE",
+        "RECEIVE_BOOT_COMPLETED"
+      ],
+      "googleServicesFile": "./google-services.json"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "scheme": "bridgechat",
+    "plugins": [
+      "expo-router",
+      "expo-camera",
+      "expo-location",
+      "expo-notifications",
+      "expo-av",
+      [
+        "expo-image-picker",
+        { "photosPermission": "BridgeChat needs photo access" }
+      ]
+    ],
+    "extra": {
+      "apiUrl": "http://localhost:5000/api",
+      "socketUrl": "http://localhost:5000",
+      "eas": { "projectId": "your-eas-project-id" }
+    }
+  }
+}
