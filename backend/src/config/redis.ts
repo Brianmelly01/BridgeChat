@@ -5,23 +5,25 @@ const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 
 export const redis = new Redis(REDIS_URL, {
   retryStrategy: (times) => {
-    if (times > 10) { logger.error('Redis: max retries reached'); return null; }
-    const delay = Math.min(times * 100, 3000);
-    logger.warn(`Redis: retrying in ${delay}ms (attempt ${times})`);
-    return delay;
+    if (times > 3) {
+      logger.warn('Redis: max retries reached — running without cache');
+      return null; // Stop retrying
+    }
+    return Math.min(times * 200, 2000);
   },
-  reconnectOnError: (err) => {
-    logger.error('Redis reconnect error:', err.message);
-    return true;
-  },
-  enableOfflineQueue: true,
-  maxRetriesPerRequest: 3,
-  lazyConnect: false,
+  reconnectOnError: () => false,
+  enableOfflineQueue: false,
+  maxRetriesPerRequest: 1,
+  lazyConnect: true,
 });
 
 redis.on('connect', () => logger.info('✅ Redis connected'));
-redis.on('error', (err) => logger.error('Redis error:', err.message));
-redis.on('close', () => logger.warn('Redis connection closed'));
+redis.on('error', () => {}); // Suppress error logs — Redis is optional
+
+// Connect but don't crash if unavailable
+redis.connect().catch(() => {
+  logger.warn('⚠️  Redis unavailable — continuing without cache');
+});
 
 // ─── Helper utilities ────────────────────────────────────────
 export const redisKeys = {
