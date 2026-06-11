@@ -48,7 +48,6 @@
     },
     "scheme": "bridgechat",
     "plugins": [
-      "expo-router",
       "expo-camera",
       "expo-location",
       "expo-notifications",
