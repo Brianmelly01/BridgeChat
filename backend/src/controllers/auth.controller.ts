@@ -7,8 +7,7 @@ import { registerSchema, loginSchema } from '../utils/validators';
 import { sendVerificationEmail, sendPasswordResetEmail, sendWelcomeEmail } from '../utils/email';
 import { getFirebaseAuth, initializeFirebase } from '../config/firebase';
 import { AuthRequest } from '../middleware/auth.middleware';
-
-initializeFirebase();
+// Firebase is initialized lazily inside firebaseLogin to avoid crashing on missing env vars
 
 export const register = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -91,6 +90,10 @@ export const firebaseLogin = async (req: Request, res: Response, next: NextFunct
   try {
     const { idToken } = req.body;
     if (!idToken) return res.status(400).json({ success: false, error: 'Firebase ID token required' });
+
+    // Lazily initialize Firebase
+    const fb = initializeFirebase();
+    if (!fb) return res.status(503).json({ success: false, error: 'Firebase auth not configured' });
 
     const decoded = await getFirebaseAuth().verifyIdToken(idToken);
 
