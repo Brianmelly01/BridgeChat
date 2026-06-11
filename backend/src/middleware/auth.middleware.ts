@@ -10,6 +10,10 @@ declare global {
   }
 }
 
+export interface AuthRequest extends Request {
+  user?: { id: string; role: string; email?: string };
+}
+
 export const authMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;

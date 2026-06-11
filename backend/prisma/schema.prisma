@@ -101,6 +101,8 @@ model User {
   twoFactorEnabled   Boolean   @default(false)
   emailVerified      Boolean   @default(false)
   emailVerifyToken   String?
+  emailVerifiedAt    DateTime?
+  firebaseUid        String?   @unique
   passwordResetToken String?
   passwordResetExpiry DateTime?
   role               UserRole  @default(USER)

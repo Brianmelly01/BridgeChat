@@ -77,4 +77,18 @@ export const getQRToken = async (token: string): Promise<string | null> => {
   return redis.get(redisKeys.qrToken(token));
 };
 
+// ─── Generic cache helpers ───────────────────────────────────
+export const setCache = async (key: string, value: string, ttlSeconds?: number): Promise<void> => {
+  if (ttlSeconds) await redis.setex(key, ttlSeconds, value).catch(() => {});
+  else await redis.set(key, value).catch(() => {});
+};
+
+export const getCache = async (key: string): Promise<string | null> => {
+  return redis.get(key).catch(() => null);
+};
+
+export const deleteCache = async (key: string): Promise<void> => {
+  await redis.del(key).catch(() => {});
+};
+
 export default redis;
