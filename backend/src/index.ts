@@ -41,11 +41,12 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(morgan('combined', { stream: { write: (msg) => logger.info(msg.trim()) } }));
 app.use(generalLimiter);
 
-// Health check
+// Health check — always 200 so Railway healthcheck passes
 app.get('/api/health', async (_req, res) => {
   const dbOk = await prisma.$queryRaw`SELECT 1`.then(() => true).catch(() => false);
-  const redisOk = await redis.ping().then(r => r === 'PONG').catch(() => false);
-  res.json({ status: 'ok', db: dbOk, redis: redisOk, uptime: process.uptime(), timestamp: new Date().toISOString() });
+  const redisOk = await redis.ping().then((r: string) => r === 'PONG').catch(() => false);
+  // Always return 200 — Railway healthcheck must succeed
+  res.status(200).json({ status: 'ok', db: dbOk, redis: redisOk, uptime: process.uptime(), timestamp: new Date().toISOString() });
 });
 
 // Routes
@@ -59,8 +60,9 @@ app.use(errorMiddleware);
 
 // Graceful shutdown
 const PORT = parseInt(process.env.PORT || '5000', 10);
-const server = httpServer.listen(PORT, () => {
-  logger.info(`🚀 BridgeChat server running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
+const HOST = process.env.HOST || '0.0.0.0';
+const server = httpServer.listen(PORT, HOST, () => {
+  logger.info(`🚀 BridgeChat server running on ${HOST}:${PORT} [${process.env.NODE_ENV || 'development'}]`);
 });
 
 const shutdown = async (signal: string) => {

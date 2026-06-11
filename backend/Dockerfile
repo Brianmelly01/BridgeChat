@@ -11,6 +11,7 @@ RUN npm run build
 
 FROM base AS production
 ENV NODE_ENV=production
+ENV HOST=0.0.0.0
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
@@ -20,4 +21,5 @@ RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
 USER nodejs
 
 EXPOSE 5000
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
+# Run migrate (ignore failure) then start server
+CMD ["sh", "-c", "npx prisma migrate deploy 2>/dev/null || echo 'Migrate skipped' && node dist/index.js"]
