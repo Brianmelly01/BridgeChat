@@ -34,6 +34,7 @@ export const userService = {
 // ─── Conversations ──────────────────────────────────────────
 export const conversationService = {
   listConversations: () => apiClient.get('/conversations'),
+  create: (data: any) => apiClient.post('/conversations', data),
   createConversation: (data: any) => apiClient.post('/conversations', data),
   getConversation: (id: string) => apiClient.get(`/conversations/${id}`),
   deleteConversation: (id: string) => apiClient.delete(`/conversations/${id}`),
@@ -75,7 +76,9 @@ export const groupService = {
 export const discoveryService = {
   getNearbyUsers: (lat: number, lng: number, radius?: number) =>
     apiClient.get('/discovery/nearby', { params: { lat, lng, radius } }),
-  getWifiUsers: (ssid: string) => apiClient.get('/discovery/wifi-network', { params: { ssid } }),
+  getWifiUsers: () => apiClient.get('/discovery/wifi'),
+  joinWifi: (ssid: string, bssid?: string) => apiClient.post('/discovery/wifi/join', { ssid, bssid }),
+  leaveWifi: () => apiClient.post('/discovery/wifi/leave'),
   getOnlineUsers: () => apiClient.get('/discovery/online'),
   generateQRToken: () => apiClient.post('/discovery/qr-token'),
   resolveQRToken: (token: string) => apiClient.get(`/discovery/qr-token/${token}`),
