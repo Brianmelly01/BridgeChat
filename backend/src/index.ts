@@ -6,15 +6,46 @@ import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
+
+dotenv.config();
+
+// ── Validate critical env vars early ──────────────────────────────────────────
+const requiredEnv = ['DATABASE_URL', 'JWT_SECRET', 'JWT_REFRESH_SECRET'];
+const missingEnv = requiredEnv.filter(k => !process.env[k]);
+if (missingEnv.length > 0) {
+  console.error(`❌ Missing required env vars: ${missingEnv.join(', ')}`);
+  console.error('Server cannot start. Set these in Railway Variables.');
+  process.exit(1);
+}
+
+console.log('✅ Env vars OK');
+console.log('🔌 Loading modules...');
+
 import { generalLimiter } from './middleware/rateLimit.middleware';
 import { errorMiddleware } from './middleware/error.middleware';
-import { initSocketService } from './services/socket.service';
-import router from './routes';
 import { logger } from './config/logger';
 import { prisma } from './config/database';
 import { redis } from './config/redis';
 
-dotenv.config();
+// Load router AFTER env validation to catch import-time crashes
+let router: express.Router;
+let initSocketService: (io: SocketServer) => void;
+
+try {
+  router = require('./routes').default;
+  console.log('✅ Routes loaded');
+} catch (err) {
+  console.error('❌ Failed to load routes:', err);
+  process.exit(1);
+}
+
+try {
+  initSocketService = require('./services/socket.service').initSocketService;
+  console.log('✅ Socket service loaded');
+} catch (err) {
+  console.warn('⚠️  Socket service failed to load (continuing without it):', err);
+  initSocketService = () => {}; // no-op fallback
+}
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -30,7 +61,8 @@ const io = new SocketServer(httpServer, {
   pingInterval: 25000,
   transports: ['websocket', 'polling'],
 });
-initSocketService(io);
+
+try { initSocketService(io); } catch (e) { console.warn('⚠️  Socket init error:', e); }
 
 // Middleware
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
@@ -45,7 +77,6 @@ app.use(generalLimiter);
 app.get('/api/health', async (_req, res) => {
   const dbOk = await prisma.$queryRaw`SELECT 1`.then(() => true).catch(() => false);
   const redisOk = await redis.ping().then((r: string) => r === 'PONG').catch(() => false);
-  // Always return 200 — Railway healthcheck must succeed
   res.status(200).json({ status: 'ok', db: dbOk, redis: redisOk, uptime: process.uptime(), timestamp: new Date().toISOString() });
 });
 
@@ -58,16 +89,18 @@ app.use((_req, res) => res.status(404).json({ success: false, error: 'Route not 
 // Global error handler
 app.use(errorMiddleware);
 
-// Graceful shutdown
+// Start server
 const PORT = parseInt(process.env.PORT || '5000', 10);
 const HOST = process.env.HOST || '0.0.0.0';
-const server = httpServer.listen(PORT, HOST, () => {
+
+httpServer.listen(PORT, HOST, () => {
+  console.log(`🚀 BridgeChat API running on ${HOST}:${PORT}`);
   logger.info(`🚀 BridgeChat server running on ${HOST}:${PORT} [${process.env.NODE_ENV || 'development'}]`);
 });
 
 const shutdown = async (signal: string) => {
   logger.info(`${signal} received — shutting down gracefully`);
-  server.close(async () => {
+  httpServer.close(async () => {
     await prisma.$disconnect();
     await redis.quit();
     logger.info('Server closed');
@@ -78,7 +111,14 @@ const shutdown = async (signal: string) => {
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
-process.on('uncaughtException', (err) => { logger.error('Uncaught Exception:', err); process.exit(1); });
-process.on('unhandledRejection', (reason) => { logger.error('Unhandled Rejection:', reason); });
+process.on('uncaughtException', (err) => {
+  console.error('❌ Uncaught Exception:', err);
+  logger.error('Uncaught Exception:', err);
+  process.exit(1);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('❌ Unhandled Rejection:', reason);
+  logger.error('Unhandled Rejection:', reason);
+});
 
 export { io };

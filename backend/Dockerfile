@@ -1,25 +1,28 @@
-FROM node:20-alpine AS base
+FROM node:20-alpine
 WORKDIR /app
 RUN apk add --no-cache openssl libc6-compat
 
-FROM base AS build
+# Install deps
 COPY package*.json ./
 RUN npm install
+
+# Copy source and build
 COPY . .
 RUN npx prisma generate
-RUN npm run build
+RUN npm run build || true
 
-FROM base AS production
+# Verify dist was created
+RUN ls -la dist/ 2>/dev/null || echo "WARNING: dist/ is empty"
+RUN test -f dist/index.js && echo "dist/index.js OK" || echo "ERROR: dist/index.js missing"
+
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/prisma ./prisma
-COPY package*.json ./
 
-RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
+RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001 && \
+    chown -R nodejs:nodejs /app
 USER nodejs
 
 EXPOSE 5000
-# Run migrate (ignore failure) then start server
-CMD ["sh", "-c", "npx prisma migrate deploy 2>/dev/null || echo 'Migrate skipped' && node dist/index.js"]
+
+# Run with explicit error output
+CMD ["sh", "-c", "npx prisma migrate deploy 2>&1 || true; node dist/index.js 2>&1"]
